@@ -5,17 +5,9 @@ import datetime
 numeric_regex = RegexValidator(
     r'^[0-9]*$', 'Only numeric characters are allowed.')
 
-AUTO_INSURANCE = 'A'
-HOME_INSURANCE = 'H'
-CUSTOMER_TYPE = (
-    (AUTO_INSURANCE, 'customer with auto insurance'),
-    (HOME_INSURANCE, 'customer with home insurance'),
-)
-
 
 def year_choices():
     return [(r, r) for r in range(1984, datetime.date.today().year+1)]
-
 
 def current_year():
     return datetime.date.today().year
@@ -38,6 +30,15 @@ class Customer(models.Model):
         (WIDOW_WIDOWER, 'widow or widower'),
     )
 
+    AUTO_INSURANCE = 'A'
+    HOME_INSURANCE = 'H'
+    AUTO_HOME = 'AH'
+    CUSTOMER_TYPE = (
+        (AUTO_INSURANCE, 'auto insurance customer'),
+        (HOME_INSURANCE, 'home insurance customer'),
+        (AUTO_HOME, 'auto & home insurance customer')
+    )
+
     c_id = models.CharField(max_length=10, primary_key=True, validators=[
                             numeric_regex, MinLengthValidator(10)])
     c_firstname = models.CharField(max_length=30)
@@ -52,7 +53,7 @@ class Customer(models.Model):
     c_maritalstatus = models.CharField(
         max_length=1, choices=MARITAL_STATUS)
     c_customertype = models.CharField(
-        max_length=1, choices=CUSTOMER_TYPE)
+        max_length=2, choices=CUSTOMER_TYPE)
 
     def __str__(self):
         return self.c_firstname + self.c_lastname
@@ -66,13 +67,20 @@ class Insurance(models.Model):
         (EXPIRED, 'insurance is expired'),
     )
 
+    AUTO_INSURANCE = 'A'
+    HOME_INSURANCE = 'H'
+    INSURANCE_TYPE = (
+        (AUTO_INSURANCE, 'auto insurance'),
+        (HOME_INSURANCE, 'home insurance'),
+    )
+
     insurance_id = models.CharField(max_length=15, primary_key=True, validators=[
                                     numeric_regex, MinLengthValidator(15)])
     startdate = models.DateField(auto_now=False, auto_now_add=False)
     enddate = models.DateField(auto_now=False, auto_now_add=False)
     premium_amount = models.DecimalField(max_digits=22, decimal_places=2)
     insurance_status = models.CharField(max_length=1, choices=INSURANCE_STATUS)
-    insurance_type = models.CharField(max_length=1, choices=CUSTOMER_TYPE)
+    insurance_type = models.CharField(max_length=1, choices=INSURANCE_TYPE)
     c_id = models.ForeignKey(Customer, on_delete=models.CASCADE)
 
     def __str__(self):
