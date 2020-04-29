@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Customer
+from . import models
 
 
 class CustomerAdmin(admin.ModelAdmin):
@@ -10,15 +10,30 @@ class CustomerAdmin(admin.ModelAdmin):
         'c_lastname',
         'c_street',
         'c_city',
+        'c_state',
+        'c_zipcode',
+        'c_gender',
+        'c_maritalstatus',
+        'c_customertype',
     )
 
-    fields = [
+
+admin.site.register(models.Customer, CustomerAdmin)
+
+class InsuranceAdmin(admin.ModelAdmin):
+    list_display = (
+        'startdate',
+        'enddate',
+        'premium_amount',
+        'insurance_status',
+        'insurance_type',
         'c_id',
-        'c_firstname',
-        'c_lastname',
-        'c_street',
-        'c_city',
-    ]
+    )
 
 
-admin.site.register(Customer, CustomerAdmin)
+admin.site.register(models.Insurance, InsuranceAdmin)
+admin.site.register(models.Invoice)
+admin.site.register(models.Payment)
+admin.site.register(models.Home)
+admin.site.register(models.Vehicle)
+admin.site.register(models.Driver)
