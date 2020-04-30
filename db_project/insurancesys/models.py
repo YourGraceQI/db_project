@@ -3,11 +3,16 @@ from django.core.validators import MinLengthValidator, RegexValidator, MinValueV
 import datetime
 
 numeric_regex = RegexValidator(
-    r'^[0-9]*$', 'Only numeric characters are allowed.')
+    r'^[0-9]+$', 'Only numeric characters are allowed.')
+
+uppercase_regex = RegexValidator(
+    r'^[A-Z]+$', 'Only uppercase characters are allowed.'
+)
 
 
 def year_choices():
-    return [(r, r) for r in range(1984, datetime.date.today().year+1)]
+    return [(r, r) for r in range(1950, datetime.date.today().year+1)]
+
 
 def current_year():
     return datetime.date.today().year
@@ -30,13 +35,13 @@ class Customer(models.Model):
         (WIDOW_WIDOWER, 'widow or widower'),
     )
 
-    AUTO_INSURANCE = 'A'
-    HOME_INSURANCE = 'H'
+    AUTO_POLICY = 'A'
+    HOME_POLICY = 'H'
     AUTO_HOME = 'AH'
     CUSTOMER_TYPE = (
-        (AUTO_INSURANCE, 'auto insurance customer'),
-        (HOME_INSURANCE, 'home insurance customer'),
-        (AUTO_HOME, 'auto & home insurance customer')
+        (AUTO_POLICY, 'auto policy customer'),
+        (HOME_POLICY, 'home policy customer'),
+        (AUTO_HOME, 'auto & home policy customer')
     )
 
     c_id = models.CharField(max_length=10, primary_key=True, validators=[
@@ -46,7 +51,7 @@ class Customer(models.Model):
     c_street = models.CharField(max_length=30)
     c_city = models.CharField(max_length=30)
     c_state = models.CharField(max_length=2, validators=[
-                               MinLengthValidator(2)])
+                               uppercase_regex, MinLengthValidator(2)])
     c_zipcode = models.CharField(max_length=5, validators=[
                                  numeric_regex, MinLengthValidator(5)])
     c_gender = models.CharField(max_length=1, choices=GENDER)
@@ -59,32 +64,32 @@ class Customer(models.Model):
         return self.c_firstname + self.c_lastname
 
 
-class Insurance(models.Model):
+class Policy(models.Model):
     CURRENT = 'C'
     EXPIRED = 'P'
-    INSURANCE_STATUS = (
-        (CURRENT, 'insurance is current'),
-        (EXPIRED, 'insurance is expired'),
+    POLICY_STATUS = (
+        (CURRENT, 'policy is current'),
+        (EXPIRED, 'policy is expired'),
     )
 
-    AUTO_INSURANCE = 'A'
-    HOME_INSURANCE = 'H'
-    INSURANCE_TYPE = (
-        (AUTO_INSURANCE, 'auto insurance'),
-        (HOME_INSURANCE, 'home insurance'),
+    AUTO_POLICY = 'A'
+    HOME_POLICY = 'H'
+    POLICY_TYPE = (
+        (AUTO_POLICY, 'auto policy'),
+        (HOME_POLICY, 'home policy'),
     )
 
-    insurance_id = models.CharField(max_length=15, primary_key=True, validators=[
-                                    numeric_regex, MinLengthValidator(15)])
+    policy_id = models.CharField(max_length=12, primary_key=True, validators=[
+                                    numeric_regex, MinLengthValidator(12)])
     startdate = models.DateField(auto_now=False, auto_now_add=False)
     enddate = models.DateField(auto_now=False, auto_now_add=False)
     premium_amount = models.DecimalField(max_digits=22, decimal_places=2)
-    insurance_status = models.CharField(max_length=1, choices=INSURANCE_STATUS)
-    insurance_type = models.CharField(max_length=1, choices=INSURANCE_TYPE)
+    policy_status = models.CharField(max_length=1, choices=POLICY_STATUS)
+    policy_type = models.CharField(max_length=1, choices=POLICY_TYPE)
     c_id = models.ForeignKey(Customer, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.insurance_id
+        return self.policy_id
 
 
 class Invoice(models.Model):
@@ -95,19 +100,19 @@ class Invoice(models.Model):
         (NO, 'Full Payment')
     )
 
-    invoice_id = models.CharField(max_length=20, primary_key=True, validators=[
-                                 numeric_regex, MinLengthValidator(20)])
+    invoice_id = models.CharField(max_length=15, primary_key=True, validators=[
+        numeric_regex, MinLengthValidator(15)])
     invoice_amount = models.DecimalField(max_digits=22, decimal_places=2)
     payment_due = models.DateField(auto_now=False, auto_now_add=False)
     installment = models.CharField(max_length=1, choices=INSTALLMENT)
-    insurance_id = models.ForeignKey(Insurance, on_delete=models.CASCADE)
+    policy_id = models.ForeignKey(Policy, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.invoice_id
 
 
 class Payment(models.Model):
-    CHECK = 'CKECK'
+    CHECK = 'CHECK'
     PAYPAL = 'PAYPAL'
     CREDIT = 'CREDIT'
     DEBIT = 'DEBIT'
@@ -118,14 +123,15 @@ class Payment(models.Model):
         (DEBIT, 'pay with debit card'),
     )
 
-    payment_id = models.CharField(max_length=22, primary_key=True, validators=[
-                                  numeric_regex, MinLengthValidator(20)])
+    pay_id = models.CharField(max_length=15, primary_key=True, validators=[
+                                  numeric_regex, MinLengthValidator(15)])
     payment_date = models.DateField(auto_now=False, auto_now_add=False)
     payment_method = models.CharField(max_length=6, choices=METHOD)
+    pay_amount = models.DecimalField(max_digits=22, decimal_places=2, default=0.00)
     invoice_id = models.ForeignKey(Invoice, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.payment_id
+        return self.pay_id
 
 
 class Vehicle(models.Model):
@@ -138,20 +144,20 @@ class Vehicle(models.Model):
         (OWNED, 'vehicle is owned'),
     )
 
-    vin = models.CharField(max_length=17, primary_key=True, validators=[
-                           numeric_regex, MinLengthValidator(17)])
+    vin = models.CharField(max_length=12, primary_key=True, validators=[
+                           numeric_regex, MinLengthValidator(12)])
     model_year = models.IntegerField(
         ('make_model_year'), choices=year_choices(), default=current_year)
     vehiclestatus = models.CharField(max_length=1, choices=VEHICLE_STATUS)
-    insurance_id = models.ForeignKey(Insurance, on_delete=models.CASCADE)
+    policys = models.ManyToManyField('Policy')
 
     def __str__(self):
         return self.vin
 
 
 class Driver(models.Model):
-    driver_licence = models.CharField(max_length=12, primary_key=True, validators=[
-                                      numeric_regex, MinLengthValidator(12)])
+    driver_licence = models.CharField(max_length=15, primary_key=True, validators=[
+                                      numeric_regex, MinLengthValidator(15)])
     d_firstname = models.CharField(max_length=30)
     d_lastname = models.CharField(max_length=30)
     d_birthdate = models.DateField
@@ -193,8 +199,8 @@ class Home(models.Model):
         (NULL, 'no swmming pool'),
 
     )
-    home_id = models.CharField(max_length=16, primary_key=True, validators=[
-                               numeric_regex, MinLengthValidator(16)])
+    home_id = models.CharField(max_length=14, primary_key=True, validators=[
+                               numeric_regex, MinLengthValidator(14)])
     purchase_date = models.DateField
     purchase_value = models.DecimalField(max_digits=22, decimal_places=2)
     homearea = models.DecimalField(max_digits=22, decimal_places=2)
@@ -203,8 +209,7 @@ class Home(models.Model):
     home_security_system = models.CharField(max_length=1, choices=YES_NO)
     swimming_pool = models.CharField(max_length=1, choices=SWIMMING_POOL)
     basement = models.CharField(max_length=1, choices=YES_NO)
-    insurance_id = models.ForeignKey(Insurance, on_delete=models.CASCADE)
+    policys = models.ManyToManyField('Policy')
 
     def __str__(self):
         return self.home_id
-

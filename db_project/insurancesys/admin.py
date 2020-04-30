@@ -20,18 +20,18 @@ class CustomerAdmin(admin.ModelAdmin):
 
 admin.site.register(models.Customer, CustomerAdmin)
 
-class InsuranceAdmin(admin.ModelAdmin):
+class PolicyAdmin(admin.ModelAdmin):
     list_display = (
         'startdate',
         'enddate',
         'premium_amount',
-        'insurance_status',
-        'insurance_type',
+        'policy_status',
+        'policy_type',
         'c_id',
     )
 
 
-admin.site.register(models.Insurance, InsuranceAdmin)
+admin.site.register(models.Policy, PolicyAdmin)
 admin.site.register(models.Invoice)
 admin.site.register(models.Payment)
 admin.site.register(models.Home)
