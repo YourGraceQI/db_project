@@ -21,13 +21,19 @@ def get_choice_validator(choices):
     return choice_validator
 
 def apply_validator(data, filedsAndValidator):
-    for filedName in filedsAndValidator:
-        fieldValue = data.get(filedName)
-        validators = filedsAndValidator.get(filedName)
+    for filed_name in filedsAndValidator:
+        if '__' in filed_name:
+            key_array = filed_name.split('__')
+            field_value = data[key_array[0]]
+            for key in key_array[1:]:
+                field_value = field_value[key]
+        else:
+            field_value = data.get(filed_name)
+        validators = filedsAndValidator.get(filed_name)
         for validator in validators:
-            if fieldValue is None:
+            if field_value is None or field_value == '':
                 pass
-            elif not validator(fieldValue):
+            elif not validator(field_value):
                 return False
     return True
 
@@ -48,3 +54,19 @@ def validate_param(method, filedsAndValidator):
         return validated_func
     return decorator
 
+def is_authenticated(func):
+    def authenticated_func(request):
+        if request.user and request.user.is_authenticated:
+            return func(request)
+        else:
+            return response_data(1, 'User not authenticated', [])
+    return authenticated_func
+
+def get_current_customer(func):
+    def authenticated_func(request):
+        if request.user and request.user.is_authenticated:
+            customer = request.user.customer
+            return func(request, customer)
+        else:
+            return response_data(1, 'User not authenticated', [])
+    return authenticated_func

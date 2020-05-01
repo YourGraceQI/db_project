@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 from django.core.validators import MinLengthValidator, RegexValidator, MinValueValidator, MaxValueValidator
 import datetime
 
@@ -48,6 +49,7 @@ class Customer(models.Model):
                             numeric_regex, MinLengthValidator(10)])
     c_firstname = models.CharField(max_length=30)
     c_lastname = models.CharField(max_length=30)
+    c_birthdate = models.DateField(auto_now=False, auto_now_add=False)
     c_street = models.CharField(max_length=30)
     c_city = models.CharField(max_length=30)
     c_state = models.CharField(max_length=2, validators=[
@@ -59,17 +61,19 @@ class Customer(models.Model):
         max_length=1, choices=MARITAL_STATUS)
     c_customertype = models.CharField(
         max_length=2, choices=CUSTOMER_TYPE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True)
 
     def __str__(self):
-        return self.c_firstname + self.c_lastname
-
+        return self.c_id
 
 class Policy(models.Model):
     CURRENT = 'C'
     EXPIRED = 'P'
+    PENDING = 'PD'
     POLICY_STATUS = (
         (CURRENT, 'policy is current'),
         (EXPIRED, 'policy is expired'),
+        (PENDING, 'policy is pending payment'),
     )
 
     AUTO_POLICY = 'A'
@@ -83,8 +87,8 @@ class Policy(models.Model):
                                     numeric_regex, MinLengthValidator(12)])
     startdate = models.DateField(auto_now=False, auto_now_add=False)
     enddate = models.DateField(auto_now=False, auto_now_add=False)
-    premium_amount = models.DecimalField(max_digits=22, decimal_places=2)
-    policy_status = models.CharField(max_length=1, choices=POLICY_STATUS)
+    premium_amount = models.DecimalField(max_digits=22, decimal_places=2, null=True)
+    policy_status = models.CharField(max_length=2, choices=POLICY_STATUS, default=PENDING)
     policy_type = models.CharField(max_length=1, choices=POLICY_TYPE)
     c_id = models.ForeignKey(Customer, on_delete=models.CASCADE)
 
@@ -93,19 +97,13 @@ class Policy(models.Model):
 
 
 class Invoice(models.Model):
-    YES = 'Y'
-    NO = 'N'
-    INSTALLMENT = (
-        (YES, 'Pay by Installment'),
-        (NO, 'Full Payment')
-    )
-
     invoice_id = models.CharField(max_length=15, primary_key=True, validators=[
         numeric_regex, MinLengthValidator(15)])
     invoice_amount = models.DecimalField(max_digits=22, decimal_places=2)
     payment_due = models.DateField(auto_now=False, auto_now_add=False)
-    installment = models.CharField(max_length=1, choices=INSTALLMENT)
+    installment = models.BooleanField(default=False)
     policy_id = models.ForeignKey(Policy, on_delete=models.CASCADE)
+    incoice_cleared = models.BooleanField(max_length=1, default=False)
 
     def __str__(self):
         return self.invoice_id
@@ -178,13 +176,6 @@ class Home(models.Model):
         (TOWN, 'town house'),
     )
 
-    YES = '1'
-    NO = '0'
-    YES_NO = (
-        (YES, 'yes'),
-        (NO, 'no'),
-    )
-
     UNDERGROUND = 'U'
     OVERGROUND = 'O'
     INDOOR = 'I'
@@ -204,10 +195,10 @@ class Home(models.Model):
     purchase_value = models.DecimalField(max_digits=22, decimal_places=2)
     homearea = models.DecimalField(max_digits=22, decimal_places=2)
     hometype = models.CharField(max_length=1, choices=HOME_TYPE)
-    auto_fire_notification = models.CharField(max_length=1, choices=YES_NO)
-    home_security_system = models.CharField(max_length=1, choices=YES_NO)
+    auto_fire_notification = models.BooleanField(default=False)
+    home_security_system = models.BooleanField(default=False)
     swimming_pool = models.CharField(max_length=1, choices=SWIMMING_POOL)
-    basement = models.CharField(max_length=1, choices=YES_NO)
+    basement = models.BooleanField(default=False)
     policys = models.ManyToManyField('Policy')
 
     def __str__(self):

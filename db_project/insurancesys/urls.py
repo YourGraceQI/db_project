@@ -12,4 +12,6 @@ urlpatterns = [
     path('vehicle', views.vehicle, name='vehicle'),
     path('driver', views.driver, name='driver'),
     path('home', views.home, name='home'),
+    path('signin', views.signin, name='signin'),
+    path('signup', views.signup, name='signup'),
 ]
