@@ -149,18 +149,17 @@ class Vehicle(models.Model):
     model_year = models.IntegerField(
         ('make_model_year'), choices=year_choices(), default=current_year)
     vehiclestatus = models.CharField(max_length=1, choices=VEHICLE_STATUS)
-    policys = models.ManyToManyField('Policy')
+    policys = models.ManyToManyField(Policy)
 
     def __str__(self):
         return self.vin
-
 
 class Driver(models.Model):
     driver_licence = models.CharField(max_length=15, primary_key=True, validators=[
                                       numeric_regex, MinLengthValidator(15)])
     d_firstname = models.CharField(max_length=30)
     d_lastname = models.CharField(max_length=30)
-    d_birthdate = models.DateField
+    d_birthdate = models.DateField(auto_now=False, auto_now_add=False)
     vin = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
 
     def __str__(self):
@@ -201,7 +200,7 @@ class Home(models.Model):
     )
     home_id = models.CharField(max_length=14, primary_key=True, validators=[
                                numeric_regex, MinLengthValidator(14)])
-    purchase_date = models.DateField
+    purchase_date = models.DateField(auto_now=False, auto_now_add=False)
     purchase_value = models.DecimalField(max_digits=22, decimal_places=2)
     homearea = models.DecimalField(max_digits=22, decimal_places=2)
     hometype = models.CharField(max_length=1, choices=HOME_TYPE)

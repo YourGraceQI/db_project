@@ -37,3 +37,4 @@ admin.site.register(models.Payment)
 admin.site.register(models.Home)
 admin.site.register(models.Vehicle)
 admin.site.register(models.Driver)
+

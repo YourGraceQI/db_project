@@ -1,9 +1,9 @@
+import json, re
 from django.shortcuts import render
-import json
-import re
-from insurancesys.models import Customer, Policy, Invoice, Home, Vehicle, Payment
+from insurancesys.models import Customer, Policy, Invoice, Home, Vehicle, Payment, Driver
 from django.http import HttpResponse, JsonResponse
 from .validators import *
+from django.db.models import F
 
 
 def index(request):
@@ -36,7 +36,7 @@ def customer(request):
         id = request.GET.get('c_id')
         first_name = request.GET.get('c_firstname')
         last_name = request.GET.get('c_lastname')
-        # use policy_id to query customer_id
+        #use policy_id to query customer_id
         policy_id = request.GET.get('policy_id')
         if not id:
             if not first_name or not last_name:
@@ -49,6 +49,9 @@ def customer(request):
         else:
             customer = Customer.objects.filter(c_id=id)
             customer_data = list(customer.values())
+            policy_data = list(Policy.objects.filter(c_id__c_id=id).values())
+            if customer_data[0]:
+                customer_data[0]['policys'] = policy_data
             return response_data(0, '', customer_data)
 
     if request.method == 'POST':
@@ -207,7 +210,7 @@ def invoice(request):
                 invoice_data = list(invoice.values())
                 return response_data(0, 'GET Success', invoice_data)
         else:
-            invoice = Invoice.objects.filter(policy_id__policy_id=policy_id)
+            invoice = Invoice.objects.filter(invoice_id=id)
             invoice_data = list(invoice.values())
             return response_data(0, 'GET Success', invoice_data)
 
@@ -334,6 +337,88 @@ def payment(request):
     #         return response_data(0, '', [])
 
     return response_data(1, 'Wrong Method', [])
+
+
+@validate_param(method='GET', filedsAndValidator={
+    "vin": [numeric_validator, get_length_validator(12)],
+    "policy_id": [numeric_validator, get_length_validator(12)],
+})
+def vehicle(request):
+    json_data = json.loads(request.body)
+    if request.method == 'GET':
+        id = request.GET.get('vin')
+        policy_id = request.GET.get('policy_id')
+        if not id:
+            if not policy_id:
+                return response_data(1, 'Insufficient GET', [])
+            else:
+                vehicle = Vehicle.objects.filter(policys__policy_id=policy_id)
+                vehicle_data = list(vehicle.values('vin', 'model_year', 'vehiclestatus', policy_id=F('policys__policy_id'), policy_status=F('policys__policy_status'), c_id=F('policys__c_id__c_id')))
+                return response_data(0, 'GET Success', vehicle_data)
+        else:
+            vehicle = Vehicle.objects.filter(vin=id)
+            vehicle_data = list(vehicle.values('vin', 'model_year', 'vehiclestatus', policy_id=F('policys__policy_id'), policy_status=F('policys__policy_status'), c_id=F('policys__c_id__c_id')))
+            return response_data(0, 'GET Success', vehicle_data)
+
+    return response_data(1, 'Wrong Method', [])
+
+@validate_param(method='GET', filedsAndValidator={
+    "vin": [numeric_validator, get_length_validator(12)],
+    "driver_licence": [numeric_validator, get_length_validator(15)],
+})
+def driver(request):
+    json_data = json.loads(request.body)
+    if request.method == 'GET':
+        id = request.GET.get('driver_licence')
+        vin = request.GET.get('vin')
+        if not id:
+            if not vin:
+                return response_data(1, 'Insufficient GET', [])
+            else:
+                driver = Driver.objects.filter(vin__vin=vin)
+                driver_data = list(driver.values('driver_licence', firstname=F('d_firstname'), lastname=F('d_lastname'), birthdate=F('d_birthdate'), vehicle_vin=F('vin__vin')))
+                return response_data(0, 'GET Success', driver_data)
+        else:
+            driver = Driver.objects.filter(driver_licence=id)
+            driver_data = list(driver.values('driver_licence', firstname=F('d_firstname'), lastname=F('d_lastname'), birthdate=F('d_birthdate'), vehicle_vin=F('vin__vin')))
+            return response_data(0, 'GET Success', driver_data)
+
+    return response_data(1, 'Wrong Method', [])
+
+@validate_param(method='GET', filedsAndValidator={
+    "home_id": [numeric_validator, get_length_validator(14)],
+    "policy_id": [numeric_validator, get_length_validator(12)],
+})
+def home(request):
+    json_data = json.loads(request.body)
+    if request.method == 'GET':
+        id = request.GET.get('home_id')
+        policy_id = request.GET.get('policy_id')
+        if not id:
+            if not policy_id:
+                return response_data(1, 'Insufficient GET', [])
+            else:
+                home = Home.objects.filter(policy_id__policy_id=policy_id)
+                home_data = list(home.values('home_id', 'purchase_date', 'purchase_value', 'homearea', 'hometype',
+                    'auto_fire_notification', 'home_security_system', 'swimming_pool', 'basement', policy=F('policys__c_id__c_id')))
+                return response_data(0, 'GET Success', home_data)
+        else:
+            home = Home.objects.filter(home_id=id)
+            home_data = list(home.values('home_id', 'purchase_date', 'purchase_value', 'homearea', 'hometype',
+                    'auto_fire_notification', 'home_security_system', 'swimming_pool', 'basement', policy=F('policys__c_id__c_id')))
+            return response_data(0, 'GET Success', home_data)
+
+    return response_data(1, 'Wrong Method', [])
+
+
+
+
+
+
+
+
+
+
 
     # "pay_id": "",
     # "payment_date": "",

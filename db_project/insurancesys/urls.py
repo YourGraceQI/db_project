@@ -9,4 +9,7 @@ urlpatterns = [
     path('policy', views.policy, name='policy'),
     path('invoice', views.invoice, name='invoice'),
     path('payment', views.payment, name='payment'),
+    path('vehicle', views.vehicle, name='vehicle'),
+    path('driver', views.driver, name='driver'),
+    path('home', views.home, name='home'),
 ]
