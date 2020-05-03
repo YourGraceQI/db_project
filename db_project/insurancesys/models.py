@@ -103,7 +103,7 @@ class Invoice(models.Model):
     payment_due = models.DateField(auto_now=False, auto_now_add=False)
     installment = models.BooleanField(default=False)
     policy_id = models.ForeignKey(Policy, on_delete=models.CASCADE)
-    incoice_cleared = models.BooleanField(max_length=1, default=False)
+    invoice_cleared = models.BooleanField(max_length=1, default=False)
 
     def __str__(self):
         return self.invoice_id
@@ -123,7 +123,7 @@ class Payment(models.Model):
 
     pay_id = models.CharField(max_length=15, primary_key=True, validators=[
                                   numeric_regex, MinLengthValidator(15)])
-    payment_date = models.DateField(auto_now=False, auto_now_add=False)
+    payment_date = models.DateField(auto_now=False, auto_now_add=True)
     payment_method = models.CharField(max_length=6, choices=METHOD)
     pay_amount = models.DecimalField(max_digits=22, decimal_places=2, default=0.00)
     invoice_id = models.ForeignKey(Invoice, on_delete=models.CASCADE)

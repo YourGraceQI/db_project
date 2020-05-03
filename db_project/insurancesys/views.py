@@ -204,6 +204,13 @@ def policy(request, current_customer):
             policy_type=policy_type,
             c_id=current_customer,
         )
+        # new_invoice_id = str(random_with_N_digits(15))
+        # while len(Invoice.objects.filter(invoice_id=new_invoice_id)) > 0:
+        #     new_invoice_id = str(random_with_N_digits(15))
+        # new_invoice = Invoice.objects.create(
+        #     invoice_id = new_invoice_id,
+        #     invoice_amount = 
+        # )
         if policy_type == Policy.HOME_POLICY:
             new_home = Home.objects.create(
                 home_id=home.get('home_id'),
@@ -375,21 +382,27 @@ def payment(request):
             payment_data = list(payment.values())
             return response_data(0, 'GET Success', payment_data)
 
-    # if request.method == 'POST':
-    #     pay_id = json_data.get('pay_id')
-    #     payment_date = json_data.get('payment_date')
-    #     payment_method = json_data.get('payment_method')
-    #     pay_amount = round(json_data.get('pay_amount'), 2)
-    #     invoice_id = json_data.get('invoice_id')
-    #     invoice = Invoice.objects.get(invoice_id=invoice_id)
-    #     if not invoice:
-    #         return response_data('1', 'Insert Parent Key First', [])
-    #     elif not pay_id or not payment_date or not payment_method or not pay_amount or not invoice_id:
-    #         return response_data('1', 'Insufficent POST', [])
-    #     else:
-    #         json_data['invoice_id'] = invoice
-    #         Payment.objects.create(**json_data)
-    #         return response_data(0, 'POST Success', [])
+    if request.method == 'POST':
+        new_pay_id = str(random_with_N_digits(15))
+        while len(Payment.objects.filter(pay_id=new_pay_id)) > 0:
+            new_pay_id = str(random_with_N_digits(15))
+        payment_method = json_data.get('payment_method')
+        pay_amount = round(json_data.get('pay_amount'), 2)
+        invoice_id = json_data.get('invoice_id')
+        current_invoice = Invoice.objects.get(invoice_id=invoice_id)
+        if not current_invoice:
+            return response_data('1', 'Insert Parent Key First', [])
+        elif not payment_method or not pay_amount or not invoice_id:
+            return response_data('1', 'Insufficent POST', [])
+        else:
+            json_data['invoice_id'] = invoice
+            Payment.objects.create(
+                pay_id = new_pay_id,
+                payment_method = payment_method,
+                pay_amount = pay_amount,
+                invoice_id = current_invoice,
+            )
+            return response_data(0, 'POST Success', [])
 
     # if request.method == 'PUT':
     #     id = json_data.get('pay_id')
@@ -507,14 +520,14 @@ def signin(request):
     user = authenticate(request, username=username, password=password)
     if user is not None:
         login(request, user)
-        return response_data(0, 'Login Success', [])
+        return response_data(0, 'Login Success', model_to_dict(user))
     else:
         return response_data(1, 'Wrong Usename or Password', [])
 
 @is_authenticated
 def signout(request):
     logout(request)
-    return response_data(1, 'Logout success', [])
+    return response_data(0, 'Logout success', [])
 
 @validate_param(method='POST', filedsAndValidator={
     "c_id": [numeric_validator, get_length_validator(10)],
