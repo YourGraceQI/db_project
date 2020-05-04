@@ -95,7 +95,6 @@ class Policy(models.Model):
     def __str__(self):
         return self.policy_id
 
-
 class Invoice(models.Model):
     invoice_id = models.CharField(max_length=15, primary_key=True, validators=[
         numeric_regex, MinLengthValidator(15)])

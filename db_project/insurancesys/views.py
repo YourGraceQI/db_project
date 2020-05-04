@@ -1,5 +1,6 @@
 import json
 import re
+from django.db import transaction
 from django.shortcuts import render
 from insurancesys.models import Customer, Policy, Invoice, Home, Vehicle, Payment, Driver
 from django.http import HttpResponse, JsonResponse
@@ -83,31 +84,24 @@ def customer(request, current_customer):
         if not c_id or not c_firstname or not c_lastname or not c_birthdate or not c_street or not c_city or not c_state or not c_zipcode or not c_gender or not c_maritalstatus or not c_customertype:
             return response_data(1, 'Insufficient POST', [])
         else:
-            Customer.objects.create(**json_data)
+            with transaction.atomic():
+                Customer.objects.create(**json_data)
             return response_data(0, 'POST Success', [])
 
     if request.method == 'PUT':
-        # id = json_data.get('c_id')
-        # c_firstname = json_data.get('c_firstname')
-        # c_lastname = json_data.get('c_lastname')
-        # c_street = json_data.get('c_street')
-        # c_city = json_data.get('c_city')
-        # c_state = json_data.get('c_state')
-        # c_zipcode = json_data.get('c_zipcode')
-        # c_gender = json_data.get('c_gender')
-        # c_maritalstatus = json_data.get('c_maritalstatus')
-        # c_customertype = json_data.get('c_customertype')
-        customer = Customer.objects.filter(c_id=current_customer.c_id)[0]
-        if not customer:
+        try:
+            customer = Customer.objects.select_for_update().filter(c_id=current_customer.c_id)
+        except:
             return response_data(1, 'No Matched Id', [])
-        else:
-            fields = [field.name for field in Customer._meta.get_fields()
-                      if field.name != 'c_id']
+
+        fields = [field.name for field in Customer._meta.get_fields()
+                  if field.name != 'c_id']
+
+        with transaction.atomic():
             for field in fields:
                 if json_data.get(field):
-                    setattr(customer, field, json_data.get(field))
-
-            customer.save()
+                    setattr(customer[0], field, json_data.get(field))
+            customer[0].save()
             return response_data(0, 'PUT Success', [])
 
     return response_data(1, 'Wrong Method', [])
@@ -164,7 +158,8 @@ def customer(request, current_customer):
 # })
 @get_current_customer
 def policy(request, current_customer):
-    json_data = json.loads(request.body)
+    if request.body:
+        json_data = json.loads(request.body)
     if request.method == 'GET':
         id = request.GET.get('policy_id')
         # c_id = request.GET.get('c_id')
@@ -173,10 +168,13 @@ def policy(request, current_customer):
             policy_data = list(policy.values())
             return response_data(0, 'GET Success', policy_data)
         else:
-            policy = Policy.objects.filter(
-                policy_id=id, c_id__c_id=current_customer.c_id)
-            policy_data = list(policy.values())
-            return response_data(0, 'GET Success', policy_data)
+            try:
+                policy = Policy.objects.get(
+                    policy_id=id, c_id__c_id=current_customer.c_id)
+            except:
+                return response_data(1, 'Policy not exist.', [])
+            policy_data = model_to_dict(policy)
+            return response_data(0, 'GET Success', [policy_data])
 
     if request.method == 'POST':
         startdate = json_data.get('startdate')
@@ -197,48 +195,51 @@ def policy(request, current_customer):
         new_policy_id = str(random_with_N_digits(12))
         while len(Policy.objects.filter(policy_id=new_policy_id)) > 0:
             new_policy_id = str(random_with_N_digits(12))
-        new_policy = Policy.objects.create(
-            policy_id=new_policy_id,
-            startdate=startdate,
-            enddate=enddate,
-            policy_type=policy_type,
-            c_id=current_customer,
-        )
-        # new_invoice_id = str(random_with_N_digits(15))
-        # while len(Invoice.objects.filter(invoice_id=new_invoice_id)) > 0:
-        #     new_invoice_id = str(random_with_N_digits(15))
-        # new_invoice = Invoice.objects.create(
-        #     invoice_id = new_invoice_id,
-        #     invoice_amount = 
-        # )
-        if policy_type == Policy.HOME_POLICY:
-            new_home = Home.objects.create(
-                home_id=home.get('home_id'),
-                purchase_date=home.get('purchase_date'),
-                purchase_value=round(home.get('purchase_value'), 2),
-                homearea=round(home.get('homearea'), 2),
-                hometype=home.get('hometype'),
-                auto_fire_notification=home.get('auto_fire_notification'),
-                home_security_system=home.get('home_security_system'),
-                swimming_pool=home.get('swimming_pool'),
-                basement=home.get('basement'),
-            )
-            new_home.policys.add(new_policy)
-        if policy_type == Policy.AUTO_POLICY:
-            new_vehicle = Vehicle.objects.create(
-                vin=auto.get('vin'),
-                model_year=auto.get('model_year'),
-                vehiclestatus=auto.get('vehiclestatus'),
-            )
-            new_vehicle.policys.add(new_policy)
-            Driver.objects.create(
-                driver_licence=auto.get('driver').get('driver_licence'),
-                d_firstname=auto.get('driver').get('d_firstname'),
-                d_lastname=auto.get('driver').get('d_lastname'),
-                d_birthdate=auto.get('driver').get('d_birthdate'),
-                vin=new_vehicle,
-            )
-        return response_data(0, 'POST Success', [])
+        try:
+            with transaction.atomic():
+                new_policy = Policy.objects.create(
+                    policy_id=new_policy_id,
+                    startdate=startdate,
+                    enddate=enddate,
+                    policy_type=policy_type,
+                    c_id=current_customer,
+                )
+                # new_invoice_id = str(random_with_N_digits(15))
+                # while len(Invoice.objects.filter(invoice_id=new_invoice_id)) > 0:
+                #     new_invoice_id = str(random_with_N_digits(15))
+                # new_invoice = Invoice.objects.create(
+                #     invoice_id = new_invoice_id
+                # )
+                if policy_type == Policy.HOME_POLICY:
+                    new_home = Home.objects.create(
+                        home_id=home.get('home_id'),
+                        purchase_date=home.get('purchase_date'),
+                        purchase_value=round(home.get('purchase_value'), 2),
+                        homearea=round(home.get('homearea'), 2),
+                        hometype=home.get('hometype'),
+                        auto_fire_notification=home.get('auto_fire_notification'),
+                        home_security_system=home.get('home_security_system'),
+                        swimming_pool=home.get('swimming_pool'),
+                        basement=home.get('basement'),
+                    )
+                    new_home.policys.add(new_policy)
+                if policy_type == Policy.AUTO_POLICY:
+                    new_vehicle = Vehicle.objects.create(
+                        vin=auto.get('vin'),
+                        model_year=auto.get('model_year'),
+                        vehiclestatus=auto.get('vehiclestatus'),
+                    )
+                    new_vehicle.policys.add(new_policy)
+                    Driver.objects.create(
+                        driver_licence=auto.get('driver').get('driver_licence'),
+                        d_firstname=auto.get('driver').get('d_firstname'),
+                        d_lastname=auto.get('driver').get('d_lastname'),
+                        d_birthdate=auto.get('driver').get('d_birthdate'),
+                        vin=new_vehicle,
+                    )
+            return response_data(0, 'POST Success', [])
+        except:
+            return response_data(1, 'Internal Error.', [])
 
     # if request.method =='PUT':
     #     id = json_data.get('policy_id')
@@ -286,7 +287,8 @@ def policy(request, current_customer):
     "policy_id": [numeric_validator, get_length_validator(12)],
 })
 def invoice(request):
-    json_data = json.loads(request.body)
+    if request.body:
+        json_data = json.loads(request.body)
     if request.method == 'GET':
         id = request.GET.get('invoice_id')
         policy_id = request.GET.get('policy_id')
@@ -303,21 +305,21 @@ def invoice(request):
             invoice_data = list(invoice.values())
             return response_data(0, 'GET Success', invoice_data)
 
-    if request.method == 'POST':
-        invoice_id = json_data.get('invoice_id')
-        invoice_amount = round(json_data.get('invoice_amount'), 2)
-        payment_due = json_data.get('payment_due')
-        installment = json_data.get('installment')
-        policy_id = json_data.get('policy_id')
-        policy = Policy.objects.get(policy_id=policy_id)
-        if not policy:
-            return response_data('1', 'Insert Parent Key First', [])
-        elif not invoice_id or not invoice_amount or not payment_due or not installment or not policy_id:
-            return response_data('1', 'Insufficent POST', [])
-        else:
-            json_data['policy_id'] = policy
-            Invoice.objects.create(**json_data)
-            return response_data(0, 'POST Success', [])
+    # if request.method == 'POST':
+    #     invoice_id = json_data.get('invoice_id')
+    #     invoice_amount = round(json_data.get('invoice_amount'), 2)
+    #     payment_due = json_data.get('payment_due')
+    #     installment = json_data.get('installment')
+    #     policy_id = json_data.get('policy_id')
+    #     policy = Policy.objects.get(policy_id=policy_id)
+    #     if not policy:
+    #         return response_data('1', 'Insert Parent Key First', [])
+    #     elif not invoice_id or not invoice_amount or not payment_due or not installment or not policy_id:
+    #         return response_data('1', 'Insufficent POST', [])
+    #     else:
+    #         json_data['policy_id'] = policy
+    #         Invoice.objects.create(**json_data)
+    #         return response_data(0, 'POST Success', [])
 
     # if request.method == 'PUT':
     #     id = json_data.get('invoice_id')
@@ -365,7 +367,8 @@ def invoice(request):
 #     "invoice_id": [numeric_validator, get_length_validator(15)],
 # })
 def payment(request):
-    json_data = json.loads(request.body)
+    if request.body:
+        json_data = json.loads(request.body)
     if request.method == 'GET':
         id = request.GET.get('pay_id')
         invoice_id = request.GET.get('invoice_id')
@@ -395,14 +398,25 @@ def payment(request):
         elif not payment_method or not pay_amount or not invoice_id:
             return response_data('1', 'Insufficent POST', [])
         else:
+            allpayment = Payment.objects.filter(invoice_id__invoice_id=invoice_id)
+            sum = pay_amount
+            for payment in allpayment:
+                sum = sum + payment.pay_amount
+            if sum >= current_invoice.invoice_amount:
+                current_invoice.invoice_cleared = True
+                current_invoice.save()
             json_data['invoice_id'] = invoice
-            Payment.objects.create(
-                pay_id = new_pay_id,
-                payment_method = payment_method,
-                pay_amount = pay_amount,
-                invoice_id = current_invoice,
-            )
-            return response_data(0, 'POST Success', [])
+            try:
+                with transaction.atomic():
+                    Payment.objects.create(
+                        pay_id = new_pay_id,
+                        payment_method = payment_method,
+                        pay_amount = pay_amount,
+                        invoice_id = current_invoice,
+                    )
+                return response_data(0, 'POST Success', [])
+            except:
+                return response_data(1, 'Internal Error', [])
 
     # if request.method == 'PUT':
     #     id = json_data.get('pay_id')
@@ -439,7 +453,8 @@ def payment(request):
     "policy_id": [numeric_validator, get_length_validator(12)],
 })
 def vehicle(request):
-    json_data = json.loads(request.body)
+    if request.body:
+        json_data = json.loads(request.body)
     if request.method == 'GET':
         id = request.GET.get('vin')
         policy_id = request.GET.get('policy_id')
@@ -465,7 +480,8 @@ def vehicle(request):
     "driver_licence": [numeric_validator, get_length_validator(15)],
 })
 def driver(request):
-    json_data = json.loads(request.body)
+    if request.body:
+        json_data = json.loads(request.body)
     if request.method == 'GET':
         id = request.GET.get('driver_licence')
         vin = request.GET.get('vin')
@@ -491,7 +507,8 @@ def driver(request):
     "policy_id": [numeric_validator, get_length_validator(12)],
 })
 def home(request):
-    json_data = json.loads(request.body)
+    if request.body:
+        json_data = json.loads(request.body)
     if request.method == 'GET':
         id = request.GET.get('home_id')
         policy_id = request.GET.get('policy_id')
@@ -499,7 +516,7 @@ def home(request):
             if not policy_id:
                 return response_data(1, 'Insufficient GET', [])
             else:
-                home = Home.objects.filter(policy_id__policy_id=policy_id)
+                home = Home.objects.filter(policys__policy_id=policy_id)
                 home_data = list(home.values('home_id', 'purchase_date', 'purchase_value', 'homearea', 'hometype',
                                              'auto_fire_notification', 'home_security_system', 'swimming_pool', 'basement', policy=F('policys__c_id__c_id')))
                 return response_data(0, 'GET Success', home_data)
@@ -550,23 +567,33 @@ def signup(request):
     birthdate = json_data.get('c_birthdate')
     if c_id is not None:
         try:
-            customer = Customer.objects.get(c_id=c_id)
-            customer_dict = model_to_dict(customer)
+            customer_queryset = Customer.objects.select_for_update().filter(c_id=current_customer.c_id)
         except:
             return response_data(1, 'Customer not exist', [])
+        customer = customer_queryset[0]
+        customer_dict = model_to_dict(customer)
+        # try:
+        #     customer = Customer.objects.get(c_id=c_id)
+        #     customer_dict = model_to_dict(customer)
+        # except:
+        #     return response_data(1, 'Customer not exist', [])
         if customer.user:
             return response_data(1, 'Customer already registered', [])
         if first_name == customer_dict.get('c_firstname') and last_name == customer_dict.get('c_lastname') and birthdate == str(customer_dict.get('c_birthdate')):
-            user = User.objects.create_user(username, email, password)
-            user.customer = customer
-            user.save()
-            customer.user = user
-            customer.save()
-            return response_data(0, 'Sign Up Success', username)
+            try:
+                with transaction.atomic():
+                    user = User.objects.create_user(username, email, password)
+                    user.customer = customer
+                    user.save()
+                    customer.user = user
+                    customer.save()
+                return response_data(0, 'Sign Up Success', username)
+            except:
+                return response_data(1, 'Internal Error', username)
         else:
             return response_data(1, 'Incorrect Customer Information', [])
     else:
-        c_id = str(random_with_N_digits(10))  # a little silly
+        c_id = str(random_with_N_digits(10))  
         while len(Customer.objects.filter(c_id=c_id)) > 0:
             c_id = str(random_with_N_digits(10))
         c_firstname = json_data.get('c_firstname')
@@ -596,13 +623,18 @@ def signup(request):
                 c_customertype=c_customertype,
                 c_birthdate=c_birthdate,
             )
-            customer.save()
-            user = User.objects.create_user(username, email, password)
-            user.customer = customer
-            user.save()
-            customer.user = user
-            customer.save()
-            return response_data(0, 'Sign Up Success', username)
+            try:
+                with transaction.atomic():
+                    customer.save()
+                    user = User.objects.create_user(username, email, password)
+                    user.customer = customer
+                    user.save()
+                    customer.user = user
+                    customer.save()
+                return response_data(0, 'Sign Up Success', username)
+            except:
+                return response_data(1, 'Internal Error', username)
+                
 
     # "pay_id": "",
     # "payment_date": "",
@@ -612,7 +644,7 @@ def signup(request):
 
 
 # {
-#     "c_id": "6666666668",
+    # "c_id": "6666666668",
     # "c_firstname": "vvvv",
     # "c_lastname": "qi",
     # "c_street": "ttt",
