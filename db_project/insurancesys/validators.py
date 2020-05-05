@@ -24,9 +24,11 @@ def apply_validator(data, filedsAndValidator):
     for filed_name in filedsAndValidator:
         if '__' in filed_name:
             key_array = filed_name.split('__')
-            field_value = data[key_array[0]]
-            for key in key_array[1:]:
-                field_value = field_value[key]
+            field_value = data.get(key_array[0])
+            if field_value:
+                for key in key_array[1:]:
+                    field_value = field_value[key]
+            
         else:
             field_value = data.get(filed_name)
         validators = filedsAndValidator.get(filed_name)
@@ -48,6 +50,8 @@ def validate_param(method, filedsAndValidator):
                     return response_data(1, 'Invalid Param', [])
             if request.method != 'GET' and request.body:
                 json_data = json.loads(request.body)
+                print(json_data)
+
                 if not apply_validator(json_data, filedsAndValidator):
                     return response_data(1, 'Invalid Param', [])
             return func(request)

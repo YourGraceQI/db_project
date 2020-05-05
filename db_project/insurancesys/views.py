@@ -547,7 +547,7 @@ def signout(request):
     return response_data(0, 'Logout success', [])
 
 @validate_param(method='POST', filedsAndValidator={
-    "c_id": [numeric_validator, get_length_validator(10)],
+    # "c_id": [numeric_validator, get_length_validator(10)],
     "c_state": [get_length_validator(2), uppercase_validator],
     "c_zipcode": [numeric_validator, get_length_validator(5)],
     "c_gender": [get_choice_validator(Customer.GENDER)],
@@ -567,7 +567,7 @@ def signup(request):
     birthdate = json_data.get('c_birthdate')
     if c_id is not None:
         try:
-            customer_queryset = Customer.objects.select_for_update().filter(c_id=current_customer.c_id)
+            customer_queryset = Customer.objects.select_for_update().filter(c_id=c_id)
         except:
             return response_data(1, 'Customer not exist', [])
         customer = customer_queryset[0]
@@ -579,7 +579,7 @@ def signup(request):
         #     return response_data(1, 'Customer not exist', [])
         if customer.user:
             return response_data(1, 'Customer already registered', [])
-        if first_name == customer_dict.get('c_firstname') and last_name == customer_dict.get('c_lastname') and birthdate == str(customer_dict.get('c_birthdate')):
+        if first_name == customer_dict.get('c_firstname') and last_name == customer_dict.get('c_lastname'):
             try:
                 with transaction.atomic():
                     user = User.objects.create_user(username, email, password)
@@ -623,6 +623,14 @@ def signup(request):
                 c_customertype=c_customertype,
                 c_birthdate=c_birthdate,
             )
+            with transaction.atomic():
+                customer.save()
+                user = User.objects.create_user(username, email, password)
+                user.customer = customer
+                user.save()
+                customer.user = user
+                customer.save()
+            return response_data(0, 'Sign Up Success', username)
             try:
                 with transaction.atomic():
                     customer.save()
@@ -634,7 +642,18 @@ def signup(request):
                 return response_data(0, 'Sign Up Success', username)
             except:
                 return response_data(1, 'Internal Error', username)
-                
+
+def check_username_is_existing(request):
+    if request.method != 'POST':
+        return response_data(1, 'Wrong method.', [])
+    json_data = json.loads(request.body)
+    if not json_data.get('username'):
+        return response_data(1, 'Insufficient Post.', [])
+    try:
+        User.objects.get(username=json_data.get('username'))
+        return response_data(1, 'Username already exists.', [])
+    except:
+        return response_data(0, 'Username is valid', [])
 
     # "pay_id": "",
     # "payment_date": "",
