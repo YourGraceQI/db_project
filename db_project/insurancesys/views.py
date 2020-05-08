@@ -190,7 +190,7 @@ def policy(request, current_customer):
             if not auto.get('driver').get('driver_licence') or not auto.get('driver').get('d_firstname') or not auto.get('driver').get('d_lastname') or not auto.get('driver').get('d_birthdate'):
                 return response_data(1, 'Insufficent POST', [])
         if policy_type == Policy.HOME_POLICY:
-            if not home.get('home_id') or not home.get('purchase_date') or not home.get('purchase_value') or not home.get('homearea') or not home.get('hometype') or not home.get('auto_fire_notification') or not home.get('home_security_system') or not home.get('swimming_pool') or not home.get('basement'):
+            if not home.get('home_id') or not home.get('purchase_date') or not home.get('purchase_value') or not home.get('homearea') or not home.get('hometype') or not home.get('swimming_pool'):
                 return response_data(1, 'Insufficent POST', [])
         new_policy_id = str(random_with_N_digits(12))
         while len(Policy.objects.filter(policy_id=new_policy_id)) > 0:
